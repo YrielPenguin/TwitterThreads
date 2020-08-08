@@ -15,7 +15,7 @@ cols = ['Confirmed', 'Deaths', 'Recovered']
 Preprocessing_by_date = False
 Preprocessiong_by_country = True
 Example = 'France'
-start = '04.24' ; date_start = start.split('.')[1]+'/'+start.split('.')[0]
+start = '05.01' ; date_start = start.split('.')[1]+'/'+start.split('.')[0]
 
 def CFR(df, n = None):
     return df['Deaths'] / (df['Confirmed'])
@@ -51,8 +51,8 @@ def getMetrics(df, metrics = ['CFR', 'nrCFR_7'], n = 7):
             metrics[metrics.index(met)] = met + '_None'
     return [eval(met.split('_')[0]+'(z,n='+met.split('_')[1]+')').iloc[n:] for met in metrics]
 
-def plotMetrics(df, metrics = ['CFR', 'nrCFR_7'], n = 7, lancetgate = True, rlancetgate = True,
-                title = '', __nrDeaths = True, __nrHealed = True):
+def plotMetrics(df, metrics = ['CFR', 'nrCFR_7'], n = 7, lancetgate = True, rlancetgate = False,
+                title = '', __nrDeaths = True, __nrHealed = True, retractimpactlg = True):
     colors = ['blue', 'green', 'red', 'black']
     legends = [_ if '_None' not in _ else _.split('_')[0] for _ in metrics]
     ress = getMetrics(df, metrics = metrics, n = n)
@@ -75,6 +75,11 @@ def plotMetrics(df, metrics = ['CFR', 'nrCFR_7'], n = 7, lancetgate = True, rlan
                    ymax=max([max(res) for res in ress]), color = 'purple')
         legends += ['LancetGate+18j']
         xticks += ['09/06', '22/06']
+    if rlancetgate:
+        plt.vlines(['15/06', '29/06'], ymin=0,
+                   ymax=max([max(res) for res in ress]), color = 'yellow')
+        legends += ['Retract+18j+/-7j']
+        xticks += ['15/06', '29/06']
     plt.legend(legends)
     plt.xlabel('Dates')
     plt.ylabel('Metrics')
@@ -201,22 +206,6 @@ def countriesLowerLGFromKSTest(dfs_by_countries, lgkstdfs,
 
 if __name__ == '__main__':
     
-# =============================================================================
-#     if Preprocessing_by_date :
-#         files = os.listdir(data_path)
-#         for f in files:
-#             if 'csv' not in f:
-#                 del files[files.index(f)]
-#         
-#         for f in tqdm.tqdm(files):
-#             df = pd.read_csv(data_path+f)
-#             if 'Country_Region' in df.columns:
-#                 df['Country/Region'] = df['Country_Region']
-#                 df.drop('Country_Region', axis=1, inplace=True)
-#             df = df[cols].groupby('Country/Region').sum(axis=1)
-#             df.to_csv(data_path2+f, sep=';')
-# =============================================================================
-            
     if Preprocessiong_by_country :
         files = os.listdir(data_path)
         for f in files:
@@ -246,26 +235,19 @@ if __name__ == '__main__':
             dfs[country].index = [_.split('-')[1] + '/' + _.split('-')[0] for _ in dfs[country].index]
             dfs[country].to_csv(data_path2+country.split('*')[0]+'.csv',
                    sep=';')
-            
-# =============================================================================
-#     if False:
-#         dfs_by_countries = readFiles()
-#         for c in dfs_by_countries:
-#             df = dfs_by_countries[c]
-#             #print(c, df.isna().sum().sum()/df.shape[0]/df.shape[1])
-# =============================================================================
-            
+             
     if Example != None:
         df = readFile(Example)
         #df.index = df.iloc[:,0] ; df.drop(df.columns[0], axis = 1, inplace = True)
         n = 7 ; metrics = ['CFR', 'nrCFR_7']
-        plotMetrics(df, metrics = metrics, n = n, lancetgate = True, rlancetgate = True,
-                    title = Example+' ; n = '+str(n), __nrDeaths = True, __nrHealed = True)
+        plotMetrics(df, metrics=metrics, n=n, lancetgate=True, rlancetgate=False, retractimpactlg=True,
+                    title=Example+' ; n = '+str(n), __nrDeaths=True, __nrHealed=True)
         
     if False:
         dfs_by_countries = readFiles()
         lgkstdfs = lancetGateKSTestDFS(dfs_by_countries, metrics = ['CFR', 'nrCFR_7'],
-        periods = [['28/05', '08/06'],['09/06', '22/06'],['23/06', '06/07']], alpha = 0.01)
+                    #periods = [['28/05', '08/06'],['09/06', '22/06'],['23/06', '06/07']], alpha = 0.01)
+                    periods = [['31/05', '14/06'],['15/06', '29/06'],['30/06', '14/07']], alpha = 0.01)
         lgkstdfs['blg_nrCFR_7'].hist(bins=100) ; plt.title('Pvalues BLG')
         lgkstdfs['alg_nrCFR_7'].hist(bins=100) ; plt.title('Pvalues ALG')
         print((lgkstdfs['blg_nrCFR_7']<0.01).sum())
@@ -276,20 +258,21 @@ if __name__ == '__main__':
                 
         
     if False: #[['22/05', '04/06'] ,['09/06', '22/06']]
-        periods1 = [['29/04', '11/05'],['12/05', '25/05'],['26/05', '08/06']]
-        periods2 = [['23/06', '05/07'],['06/07', '19/07'],None]
+        #periods1 = [['29/04', '11/05'],['12/05', '25/05'],['26/05', '08/06']]
+       # periods2 = [['23/06', '05/07'],['06/07', '19/07'],None]
+        periods1 = [['16/04','30/04'],['01/05', '15/05'],['16/05', '30/05']]
         dfs_by_countries = readFiles()
         lgkstdfs1 = lancetGateKSTestDFS(dfs_by_countries, metrics = ['nrCFR_7'],
-        periods = periods1, alpha = 0.01)
-        lgkstdfs2 = lancetGateKSTestDFS(dfs_by_countries, metrics = ['nrCFR_7'],
-        periods = periods2, alpha = 0.01)
+                    periods = periods1, alpha = 0.01)
+        #lgkstdfs2 = lancetGateKSTestDFS(dfs_by_countries, metrics = ['nrCFR_7'],
+                    #periods = periods2, alpha = 0.01)
         
         lgkstdfs1['blg_nrCFR_7'].hist(bins=100)
         lgkstdfs1['alg_nrCFR_7'].hist(bins=100)
-        lgkstdfs2['blg_nrCFR_7'].hist(bins=100)
+        #lgkstdfs2['blg_nrCFR_7'].hist(bins=100)
         print((lgkstdfs1['blg_nrCFR_7']<0.01).sum())
         print((lgkstdfs1['alg_nrCFR_7']<0.01).sum())
-        print((lgkstdfs2['blg_nrCFR_7']<0.01).sum())
+        #print((lgkstdfs2['blg_nrCFR_7']<0.01).sum())
         
 # =============================================================================
 #         stats.ks_2samp(lgkstdfsB['blg_nrCFR_7'], lgkstdfs['blg_nrCFR_7']).pvalue
@@ -297,7 +280,7 @@ if __name__ == '__main__':
 # =============================================================================
         
         l_b1, l_a1 = countriesLowerLGFromKSTest(dfs_by_countries, lgkstdfs1, periods1)
-        l_b2, l_a2 = countriesLowerLGFromKSTest(dfs_by_countries, lgkstdfs2, periods2)
+        #l_b2, l_a2 = countriesLowerLGFromKSTest(dfs_by_countries, lgkstdfs2, periods2)
     
     
     
